@@ -34,15 +34,21 @@ This project is a web application for analyzing and visualizing the results of v
 - `decision trees/`, `random forest/`, `logistic regression/`, `Naive bayes/`, `support vector machines/` - Model scripts and datasets
 
 ## Demo Video
-A demo video showing the application in action is available below:
+A demo video showing the application in action is included in this repository:
 
-[![Demo Video](demo-thumbnail.png)](https://your-demo-video-link)
+### ▶️ [Click here to watch the demo video](demo.mp4)
 
-*Replace the link above with your actual video URL and add a thumbnail image as `demo-thumbnail.png` if desired.*
+Or view it inline below (GitHub may allow playback in-browser):
+
+<details>
+<summary>Show Demo Video</summary>
+
+<video src="demo.mp4" controls width="600"></video>
+
+</details>
 
 ## Notes
 - Ensure all required datasets are present in their respective folders.
 - If you encounter import errors, make sure your Python environment is activated and all dependencies are installed.
+- The demo video (`demo.mp4`) is included in this repository for your convenience.
 
----
-Feel free to contribute or raise issues!
