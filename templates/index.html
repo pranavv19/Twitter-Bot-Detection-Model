@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Bot Detection Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        .metric-card {
+            text-align: center;
+            padding: 15px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .confusion-matrix {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .confusion-cell {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fab fa-twitter me-2"></i>
+                Twitter Bot Detection Analysis
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Model Selection</h5>
+                        <select id="modelSelector" class="form-select model-selector">
+                            <option value="Decision Tree">Decision Tree</option>
+                            <option value="Random Forest">Random Forest</option>
+                            <option value="Naive Bayes">Naive Bayes</option>
+                            <option value="Logistic Regression">Logistic Regression</option>
+                            <option value="SVM">SVM</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Model Performance</h5>
+                        <div class="metric-card">
+                            <div class="metric-label">Accuracy</div>
+                            <div id="accuracy" class="metric-value">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Precision</div>
+                            <div id="precision" class="metric-value">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Recall</div>
+                            <div id="recall" class="metric-value">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">F1-Score</div>
+                            <div id="f1" class="metric-value">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Confusion Matrix</h5>
+                        <div id="confusionMatrix" class="confusion-matrix">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">ROC Curve</h5>
+                        <canvas id="rocCurve"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Precision-Recall Curve</h5>
+                        <canvas id="prCurve"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading model results...</p>
+    </div>
+
+    <script>
+        let results = null;
+        let rocChart = null;
+        let prChart = null;
+
+        async function loadResults() {
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const response = await fetch('/api/results');
+                results = await response.json();
+                updateUI('Decision Tree');
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function updateUI(modelName) {
+            const modelResults = results[modelName];
+            
+            // Update metrics
+            document.getElementById('accuracy').textContent = (modelResults.accuracy * 100).toFixed(2) + '%';
+            document.getElementById('precision').textContent = (modelResults.classification_report['1']['precision'] * 100).toFixed(2) + '%';
+            document.getElementById('recall').textContent = (modelResults.classification_report['1']['recall'] * 100).toFixed(2) + '%';
+            document.getElementById('f1').textContent = (modelResults.classification_report['1']['f1-score'] * 100).toFixed(2) + '%';
+
+            // Update confusion matrix
+            const confusionMatrix = document.getElementById('confusionMatrix');
+            confusionMatrix.innerHTML = `
+                <div class="confusion-cell">${modelResults.confusion_matrix[0][0]}</div>
+                <div class="confusion-cell">${modelResults.confusion_matrix[0][1]}</div>
+                <div class="confusion-cell">${modelResults.confusion_matrix[1][0]}</div>
+                <div class="confusion-cell">${modelResults.confusion_matrix[1][1]}</div>
+            `;
+
+            // Update ROC curve
+            if (rocChart) {
+                rocChart.destroy();
+            }
+            const rocCtx = document.getElementById('rocCurve').getContext('2d');
+            rocChart = new Chart(rocCtx, {
+                type: 'line',
+                data: {
+                    labels: modelResults.roc_curve.fpr,
+                    datasets: [{
+                        label: `ROC Curve (AUC = ${modelResults.roc_curve.auc.toFixed(3)})`,
+                        data: modelResults.roc_curve.tpr,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'False Positive Rate'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'True Positive Rate'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update PR curve
+            if (prChart) {
+                prChart.destroy();
+            }
+            const prCtx = document.getElementById('prCurve').getContext('2d');
+            prChart = new Chart(prCtx, {
+                type: 'line',
+                data: {
+                    labels: modelResults.pr_curve.recall,
+                    datasets: [{
+                        label: `PR Curve (AP = ${modelResults.pr_curve.avg_precision.toFixed(3)})`,
+                        data: modelResults.pr_curve.precision,
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Recall'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Precision'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById('modelSelector').addEventListener('change', (e) => {
+            updateUI(e.target.value);
+        });
+
+        // Load results when the page loads
+        loadResults();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
