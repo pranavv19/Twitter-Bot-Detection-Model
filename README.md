@@ -12,7 +12,7 @@ This project is a web application for analyzing and visualizing the results of v
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/pranavv19/Twitter-Bot-Detection-Model.git
    cd Twitter-Bot-Detection-Model
    ```
 
